@@ -37,6 +37,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     images,
     donorId,
     fridgeId,
+    description,
   } = req.body
 
   if (!name || !category || !quantity || !expiryDate || !pickupMethod || !pickupLocation || !donorId) {
@@ -55,6 +56,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     images: images || [],
     donorId,
     fridgeId,
+    description,
   })
   res.status(201).json({ success: true, data: food })
 })
@@ -68,6 +70,7 @@ router.put('/:id/status', async (req: Request, res: Response): Promise<void> => 
     'reserved',
     'claimed',
     'expired',
+    'spoiled',
   ]
   if (!status || !validStatuses.includes(status)) {
     res.status(400).json({ success: false, error: '无效的状态值' })

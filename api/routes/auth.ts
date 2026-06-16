@@ -3,6 +3,11 @@ import db from '../database.js'
 
 const router = Router()
 
+router.get('/users', async (_req: Request, res: Response): Promise<void> => {
+  const users = Array.from(db.users.values())
+  res.json({ success: true, data: users })
+})
+
 router.post('/login', async (req: Request, res: Response): Promise<void> => {
   const { phone } = req.body
   if (!phone) {

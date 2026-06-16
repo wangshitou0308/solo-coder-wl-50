@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, MapPin, Truck, Refrigerator, Copy, CheckCircle, XCircle, User, QrCode, Check, AlertTriangle, Image as ImageIcon } from 'lucide-react'
 import { useStore } from '@/store/useStore'
@@ -32,11 +32,17 @@ const statusLabels: Record<string, { text: string; color: string }> = {
 export default function FoodDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { foods, role, currentUser, claimFood, completeClaim, updateFoodStatus } = useStore()
+  const { foods, role, currentUser, claimFood, completeClaim, updateFoodStatus, fetchFoods } = useStore()
   const [showClaimSuccess, setShowClaimSuccess] = useState(false)
+  const [claiming, setClaiming] = useState(false)
+  const [claimError, setClaimError] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [verifyCode, setVerifyCode] = useState('')
   const [verifyError, setVerifyError] = useState('')
+
+  useEffect(() => {
+    fetchFoods()
+  }, [fetchFoods])
 
   const food = useMemo(() => foods.find((f) => f.id === id), [foods, id])
 
@@ -63,9 +69,14 @@ export default function FoodDetail() {
   const isMyDonation = role === 'donor' && food.donorId === currentUser.id
 
   const handleClaim = async () => {
+    setClaiming(true)
+    setClaimError('')
     const success = await claimFood(food.id)
+    setClaiming(false)
     if (success) {
       setShowClaimSuccess(true)
+    } else {
+      setClaimError('预约失败，该食物可能已被他人预约或已下架')
     }
   }
 
@@ -360,13 +371,26 @@ export default function FoodDetail() {
 
           <div className="flex flex-col sm:flex-row gap-3 mt-6">
             {role === 'claimant' && food.status === 'available' && !isExpired && (
-              <button
-                onClick={handleClaim}
-                className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-md shadow-primary-200 hover:shadow-lg hover:from-primary-600 hover:to-primary-700 transition-all text-sm flex items-center justify-center gap-2"
-              >
-                <QrCode className="w-4 h-4" />
-                立即预约领取
-              </button>
+              <div className="flex-1">
+                <button
+                  onClick={handleClaim}
+                  disabled={claiming}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-md shadow-primary-200 hover:shadow-lg hover:from-primary-600 hover:to-primary-700 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {claiming ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <QrCode className="w-4 h-4" />
+                  )}
+                  {claiming ? '预约中...' : '立即预约领取'}
+                </button>
+                {claimError && (
+                  <p className="text-xs text-red-500 mt-2 flex items-center gap-1 justify-center">
+                    <AlertTriangle className="w-3 h-3" />
+                    {claimError}
+                  </p>
+                )}
+              </div>
             )}
 
             {isMyClaim && (

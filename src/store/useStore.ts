@@ -349,14 +349,42 @@ export const useStore = create<StoreState>((set, get) => ({
       if (res.ok) {
         const result = await res.json()
         if (result.success && result.data) {
-          const foods = Array.isArray(result.data) ? result.data : []
-          set({ foods: foods.map(convertDbFoodToStore) })
+          const apiFoods = Array.isArray(result.data) ? result.data : []
+          const usersMap = new Map<string, any>()
+          try {
+            const usersRes = await fetch('/api/auth/users')
+            if (usersRes.ok) {
+              const usersResult = await usersRes.json()
+              if (usersResult.success && usersResult.data) {
+                usersResult.data.forEach((u: any) => usersMap.set(u.id, u))
+              }
+            }
+          } catch {}
+
+          const convertedApiFoods = apiFoods.map((f: any) => convertDbFoodToStore(f, usersMap))
+
+          set((state) => {
+            const foodMap = new Map<string, Food>()
+            state.foods.forEach((f) => foodMap.set(f.id, f))
+            convertedApiFoods.forEach((f) => {
+              const existing = foodMap.get(f.id)
+              if (existing) {
+                foodMap.set(f.id, { ...existing, ...f })
+              } else {
+                foodMap.set(f.id, f)
+              }
+            })
+            return { foods: Array.from(foodMap.values()) }
+          })
           return
         }
       }
       throw new Error('API failed')
     } catch {
-      set({ foods: mockFoods })
+      const currentFoods = get().foods
+      if (currentFoods.length === 0) {
+        set({ foods: mockFoods })
+      }
     }
   },
 
@@ -443,7 +471,18 @@ export const useStore = create<StoreState>((set, get) => ({
         const result = await res.json()
         if (result.success && result.data) {
           const newFood = convertDbFoodToStore(result.data)
-          set((state) => ({ foods: [newFood, ...state.foods] }))
+          if (!newFood.donorName) {
+            newFood.donorName = get().currentUser.name
+          }
+          set((state) => {
+            const foodMap = new Map<string, Food>()
+            state.foods.forEach((f) => foodMap.set(f.id, f))
+            foodMap.set(newFood.id, newFood)
+            const sorted = Array.from(foodMap.values()).sort(
+              (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )
+            return { foods: sorted }
+          })
           return newFood
         }
       }
@@ -460,39 +499,57 @@ export const useStore = create<StoreState>((set, get) => ({
         pickupCode: generatePickupCode(),
         images: foodData.images || [],
       }
-      set((state) => ({ foods: [newFood, ...state.foods] }))
+      set((state) => {
+        const foodMap = new Map<string, Food>()
+        state.foods.forEach((f) => foodMap.set(f.id, f))
+        foodMap.set(newFood.id, newFood)
+        const sorted = Array.from(foodMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        return { foods: sorted }
+      })
       return newFood
     }
   },
 
   claimFood: async (foodId) => {
+    const currentUser = get().currentUser
     try {
       const res = await fetch(`/api/foods/${foodId}/claim`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claimantId: get().currentUser.id }),
+        body: JSON.stringify({ claimantId: currentUser.id }),
       })
       if (res.ok) {
         const result = await res.json()
         if (result.success && result.data) {
           const updatedFood = convertDbFoodToStore(result.data)
+          if (!updatedFood.claimantName) {
+            updatedFood.claimantName = currentUser.name
+          }
+          if (!updatedFood.claimantId) {
+            updatedFood.claimantId = currentUser.id
+          }
           set((state) => ({
-            foods: state.foods.map((f) => (f.id === foodId ? updatedFood : f)),
+            foods: state.foods.map((f) => (f.id === foodId ? { ...f, ...updatedFood } : f)),
           }))
           return true
         }
       }
-      return false
+      const errorData = await res.json().catch(() => ({}))
+      console.error('Claim failed:', errorData.error || 'Unknown error')
+      throw new Error(errorData.error || 'Claim failed')
     } catch {
       const code = generatePickupCode()
       set((state) => ({
         foods: state.foods.map((f) =>
-          f.id === foodId
-            ? { ...f, status: 'reserved' as FoodStatus, claimantId: state.currentUser.id, claimantName: state.currentUser.name, pickupCode: code }
+          f.id === foodId && (f.status === 'available')
+            ? { ...f, status: 'reserved' as FoodStatus, claimantId: currentUser.id, claimantName: currentUser.name, pickupCode: code }
             : f
         ),
       }))
-      return true
+      const updated = get().foods.find((f) => f.id === foodId)
+      return updated?.status === 'reserved'
     }
   },
 
@@ -532,17 +589,31 @@ export const useStore = create<StoreState>((set, get) => ({
         const result = await res.json()
         if (result.success && result.data) {
           const updatedFood = convertDbFoodToStore(result.data)
-          set((state) => ({
-            foods: state.foods.map((f) => (f.id === foodId ? updatedFood : f)),
-          }))
+          set((state) => {
+            const foodMap = new Map<string, Food>()
+            state.foods.forEach((f) => foodMap.set(f.id, f))
+            const existing = foodMap.get(foodId)
+            if (existing) {
+              foodMap.set(foodId, { ...existing, ...updatedFood, status })
+            } else {
+              foodMap.set(foodId, updatedFood)
+            }
+            return { foods: Array.from(foodMap.values()) }
+          })
           return true
         }
       }
-      return false
+      throw new Error('API failed')
     } catch {
-      set((state) => ({
-        foods: state.foods.map((f) => (f.id === foodId ? { ...f, status } : f)),
-      }))
+      set((state) => {
+        const foodMap = new Map<string, Food>()
+        state.foods.forEach((f) => foodMap.set(f.id, f))
+        const existing = foodMap.get(foodId)
+        if (existing) {
+          foodMap.set(foodId, { ...existing, status, updatedAt: new Date().toISOString().split('T')[0] })
+        }
+        return { foods: Array.from(foodMap.values()) }
+      })
       return true
     }
   },

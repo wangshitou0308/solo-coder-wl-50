@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, User, Gift, ShoppingBag, Clock, CheckCircle, XCircle, AlertTriangle, Eye } from 'lucide-react'
 import { useStore } from '@/store/useStore'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 const statusConfig: Record<string, { text: string; color: string; icon: typeof CheckCircle }> = {
   available: { text: '可领取', color: 'text-green-600 bg-green-50', icon: CheckCircle },
   pending_review: { text: '待审核', color: 'text-amber-600 bg-amber-50', icon: Clock },
+  reserved: { text: '已预约', color: 'text-purple-600 bg-purple-50', icon: Clock },
   claimed: { text: '已领取', color: 'text-blue-600 bg-blue-50', icon: ShoppingBag },
   expired: { text: '已过期', color: 'text-red-600 bg-red-50', icon: AlertTriangle },
   spoiled: { text: '已变质', color: 'text-stone-600 bg-stone-50', icon: XCircle },
@@ -15,8 +16,12 @@ const statusConfig: Record<string, { text: string; color: string; icon: typeof C
 
 export default function Profile() {
   const navigate = useNavigate()
-  const { currentUser, foods, role } = useStore()
+  const { currentUser, foods, role, fetchFoods } = useStore()
   const [activeTab, setActiveTab] = useState<'donate' | 'claim'>('donate')
+
+  useEffect(() => {
+    fetchFoods()
+  }, [fetchFoods])
 
   const donations = foods.filter((f) => f.donorId === currentUser.id)
   const claims = foods.filter((f) => f.claimantId === currentUser.id)

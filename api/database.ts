@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 type FoodCategory = '生鲜果蔬' | '熟食' | '干货' | '罐头' | '烘焙' | '冷冻食品'
 type PickupMethod = '放置共享冰箱' | '定点自取' | '上门领取'
-type FoodStatus = 'pending_review' | 'available' | 'reserved' | 'claimed' | 'expired' | 'rejected'
+type FoodStatus = 'pending_review' | 'available' | 'reserved' | 'claimed' | 'expired' | 'spoiled' | 'rejected'
 
 interface FoodItem {
   id: string
@@ -13,6 +13,7 @@ interface FoodItem {
   expiryDate: string
   pickupMethod: PickupMethod
   pickupLocation: string
+  description?: string
   images: string[]
   pickupCode: string
   status: FoodStatus
