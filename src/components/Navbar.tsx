@@ -1,0 +1,157 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Leaf, Search, Bell, User, ChevronDown, LogOut, LayoutDashboard, Heart, Shield } from 'lucide-react'
+import { useStore } from '@/store/useStore'
+
+const roleLabels = { donor: '捐赠者', claimant: '需求者', admin: '管理员' }
+
+export default function Navbar() {
+  const navigate = useNavigate()
+  const { currentUser, role, setRole, searchKeyword, setSearchKeyword, foods } = useStore()
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+  const nearExpiryCount = foods.filter((f) => {
+    const diff = new Date(f.expiryDate).getTime() - Date.now()
+    return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000 && f.status === 'available'
+  }).length
+
+  const roles: Array<'donor' | 'claimant' | 'admin'> = ['donor', 'claimant', 'admin']
+
+  return (
+    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200/60 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
+              <Leaf className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">
+              食物银行
+            </span>
+          </div>
+
+          <div className="hidden md:flex items-center flex-1 max-w-md mx-8">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+              <input
+                type="text"
+                placeholder="搜索食物..."
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-100 border border-transparent focus:border-primary-300 focus:bg-white focus:outline-none transition-all text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-1 bg-stone-100 rounded-xl p-1">
+            {roles.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRole(r)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  role === r
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                {roleLabels[r]}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 ml-4">
+            <button className="relative p-2 rounded-xl hover:bg-stone-100 transition-colors">
+              <Bell className="w-5 h-5 text-stone-500" />
+              {nearExpiryCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {nearExpiryCount}
+                </span>
+              )}
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-stone-100 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-300 to-secondary-400 flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <span className="hidden sm:block text-sm font-medium text-stone-700">{currentUser.name}</span>
+                <ChevronDown className="w-4 h-4 text-stone-400" />
+              </button>
+
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-lg border border-stone-200 py-2 z-50">
+                    <div className="px-4 py-3 border-b border-stone-100">
+                      <p className="font-medium text-stone-800">{currentUser.name}</p>
+                      <p className="text-xs text-stone-400 mt-0.5">{currentUser.phone}</p>
+                    </div>
+                    <button
+                      onClick={() => { navigate('/profile'); setUserMenuOpen(false) }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <Heart className="w-4 h-4" /> 个人中心
+                    </button>
+                    {role === 'admin' && (
+                      <button
+                        onClick={() => { navigate('/admin'); setUserMenuOpen(false) }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                      >
+                        <Shield className="w-4 h-4" /> 管理后台
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { navigate('/dashboard'); setUserMenuOpen(false) }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <LayoutDashboard className="w-4 h-4" /> 数据看板
+                    </button>
+                    <div className="border-t border-stone-100 mt-1 pt-1">
+                      <button
+                        onClick={() => { useStore.getState().logout(); setUserMenuOpen(false) }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50"
+                      >
+                        <LogOut className="w-4 h-4" /> 退出登录
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="md:hidden pb-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+            <input
+              type="text"
+              placeholder="搜索食物..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-stone-100 border border-transparent focus:border-primary-300 focus:bg-white focus:outline-none transition-all text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-1 bg-stone-100 rounded-xl p-1 mt-2">
+            {roles.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRole(r)}
+                className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  role === r
+                    ? 'bg-white text-primary-600 shadow-sm'
+                    : 'text-stone-500'
+                }`}
+              >
+                {roleLabels[r]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}

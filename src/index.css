@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #F97316;
+  --color-secondary: #16A34A;
+  --color-danger: #EF4444;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+  --color-bg: #FFFBF5;
+  --color-card: #FFFFFF;
+  --color-border: #F3E8DB;
+  --color-text: #1C1917;
+  --color-text-secondary: #78716C;
+
+  font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6D3D1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A8A29E;
+}
+
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    border-color: rgba(245, 158, 11, 1);
+  }
+}
+
+.card-enter {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+@keyframes fade-in-up {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pickup-code {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.25em;
+}
