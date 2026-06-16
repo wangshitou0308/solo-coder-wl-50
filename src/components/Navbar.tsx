@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Leaf, Search, Bell, User, ChevronDown, LogOut, LayoutDashboard, Heart, Shield, AlertTriangle, Clock, X } from 'lucide-react'
+import { Leaf, Search, Bell, User, ChevronDown, LogOut, LayoutDashboard, Heart, Shield, AlertTriangle, Clock, X, MapPin, FileText, MessageSquareHeart, ClipboardList, Settings, BarChart3, Ticket } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { cn } from '@/lib/utils'
 
@@ -8,9 +8,13 @@ const roleLabels = { donor: '捐赠者', claimant: '需求者', admin: '管理�
 
 export default function Navbar() {
   const navigate = useNavigate()
-  const { currentUser, role, setRole, searchKeyword, setSearchKeyword, foods } = useStore()
+  const { currentUser, role, setRole, searchKeyword, setSearchKeyword, foods, notifications, fetchNotifications } = useStore()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
 
   const nearExpiryFoods = foods.filter((f) => {
     const diff = new Date(f.expiryDate).getTime() - Date.now()
@@ -18,6 +22,7 @@ export default function Navbar() {
   })
 
   const nearExpiryCount = nearExpiryFoods.length
+  const unreadNotificationCount = notifications.filter(n => !n.read).length
 
   const roles: Array<'donor' | 'claimant' | 'admin'> = ['donor', 'claimant', 'admin']
 
@@ -66,13 +71,16 @@ export default function Navbar() {
           <div className="flex items-center gap-3 ml-4">
             <div className="relative">
               <button
-                onClick={() => setNotifOpen(!notifOpen)}
+                onClick={() => {
+                  navigate('/notifications')
+                  setNotifOpen(false)
+                }}
                 className="relative p-2 rounded-xl hover:bg-stone-100 transition-colors"
               >
                 <Bell className="w-5 h-5 text-stone-500" />
-                {nearExpiryCount > 0 && (
+                {(nearExpiryCount + unreadNotificationCount) > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
-                    {nearExpiryCount}
+                    {nearExpiryCount + unreadNotificationCount}
                   </span>
                 )}
               </button>
@@ -208,6 +216,97 @@ export default function Navbar() {
                     >
                       <LayoutDashboard className="w-4 h-4" /> 数据看板
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUserMenuOpen(false)
+                        navigate('/notifications')
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <Bell className="w-4 h-4" /> 消息通知
+                      {unreadNotificationCount > 0 && (
+                        <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                          {unreadNotificationCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUserMenuOpen(false)
+                        navigate('/vouchers')
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <Ticket className="w-4 h-4" /> 领取凭证
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUserMenuOpen(false)
+                        navigate('/fridge-map')
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <MapPin className="w-4 h-4" /> 冰箱地图
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUserMenuOpen(false)
+                        navigate('/needs')
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <FileText className="w-4 h-4" /> 物资需求
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setUserMenuOpen(false)
+                        navigate('/reviews')
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                    >
+                      <MessageSquareHeart className="w-4 h-4" /> 评价与感谢
+                    </button>
+                    {role === 'admin' && (
+                      <>
+                        <div className="border-t border-stone-100 my-1" />
+                        <p className="px-4 py-1.5 text-xs font-medium text-stone-400">管理员功能</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setUserMenuOpen(false)
+                            navigate('/inspection-tasks')
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                        >
+                          <ClipboardList className="w-4 h-4" /> 巡检任务
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setUserMenuOpen(false)
+                            navigate('/alert-rules')
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                        >
+                          <Settings className="w-4 h-4" /> 告警规则
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setUserMenuOpen(false)
+                            navigate('/analytics')
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50"
+                        >
+                          <BarChart3 className="w-4 h-4" /> 高级分析
+                        </button>
+                      </>
+                    )}
                     <div className="border-t border-stone-100 mt-1 pt-1">
                       <button
                         onClick={(e) => {

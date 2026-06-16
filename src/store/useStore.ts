@@ -78,6 +78,237 @@ export interface FridgeInspection {
   createdAt: string
 }
 
+export interface ReservationQueue {
+  id: string
+  foodId: string
+  claimantId: string
+  claimantName: string
+  queuePosition: number
+  status: 'waiting' | 'notified' | 'expired' | 'cancelled'
+  createdAt: string
+  notifiedAt?: string
+  expiresAt?: string
+}
+
+export interface StockChangeLog {
+  id: string
+  foodId: string
+  userId: string
+  userName: string
+  changeType: 'donated' | 'reserved' | 'claimed' | 'expired' | 'spoiled' | 'returned' | 'adjusted'
+  quantityChange: number
+  oldQuantity: number
+  newQuantity: number
+  reason: string
+  createdAt: string
+}
+
+export interface StatusTimeline {
+  id: string
+  foodId: string
+  userId?: string
+  userName?: string
+  fromStatus: string
+  toStatus: string
+  reason: string
+  createdAt: string
+}
+
+export interface RejectRecord {
+  id: string
+  foodId: string
+  adminId: string
+  adminName: string
+  reason: string
+  createdAt: string
+}
+
+export interface ClaimVoucher {
+  id: string
+  foodId: string
+  foodName: string
+  claimantId: string
+  claimantName: string
+  donorId: string
+  donorName: string
+  pickupCode: string
+  claimedAt: string
+  pickupLocation: string
+  quantity: number
+  weight: string
+  category: string
+  images: string[]
+}
+
+export interface FoodReview {
+  id: string
+  foodId: string
+  reviewerId: string
+  reviewerName: string
+  reviewerRole: 'donor' | 'claimant'
+  targetId: string
+  targetName: string
+  rating: number
+  content: string
+  thankYouNote?: string
+  createdAt: string
+}
+
+export interface Notification {
+  id: string
+  userId: string
+  type: 'review_result' | 'expiry_alert' | 'reservation_success' | 'claim_success' | 'reservation_available' | 'system_announcement'
+  title: string
+  content: string
+  relatedId?: string
+  relatedType?: string
+  read: boolean
+  createdAt: string
+  readAt?: string
+}
+
+export interface MaterialNeed {
+  id: string
+  requesterId: string
+  requesterName: string
+  title: string
+  description: string
+  category: string
+  quantity: number
+  unit: string
+  urgency: 'low' | 'medium' | 'high' | 'urgent'
+  status: 'open' | 'matched' | 'fulfilled' | 'cancelled'
+  location: string
+  contactInfo: string
+  createdAt: string
+  matchedDonationId?: string
+  fulfilledAt?: string
+}
+
+export interface InspectionTask {
+  id: string
+  fridgeId: string
+  fridgeName: string
+  assigneeId: string
+  assigneeName: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high'
+  scheduledDate: string
+  completedDate?: string
+  notes?: string
+  temperature?: number
+  cleanliness?: number
+  issues?: string
+  createdAt: string
+}
+
+export interface AlertRule {
+  id: string
+  name: string
+  type: 'temperature' | 'expiry' | 'capacity'
+  enabled: boolean
+  threshold: number
+  operator: 'gt' | 'lt' | 'gte' | 'lte' | 'eq'
+  notificationChannels: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FoodCategoryConfig {
+  id: string
+  name: string
+  icon: string
+  color: string
+  sortOrder: number
+  enabled: boolean
+  createdAt: string
+}
+
+export interface FridgePoint {
+  id: string
+  name: string
+  location: string
+  address: string
+  latitude: number
+  longitude: number
+  temperature: number
+  cleanliness: number
+  capacity: number
+  currentStock: number
+  status: 'normal' | 'warning' | 'maintenance' | 'offline'
+  contactPerson: string
+  contactPhone: string
+  community: string
+  lastInspected?: string
+  createdAt: string
+}
+
+export interface LossRecord {
+  id: string
+  foodId: string
+  foodName: string
+  category: string
+  quantity: number
+  weight: string
+  reason: 'expired' | 'spoiled' | 'damaged' | 'returned' | 'other'
+  description: string
+  reportedBy: string
+  reportedAt: string
+  fridgeId?: string
+}
+
+export interface InspectionRecord {
+  id: string
+  fridgeId: string
+  inspectorId: string
+  inspectorName: string
+  temperature: number
+  cleanliness: number
+  issues: string
+  notes: string
+  createdAt: string
+}
+
+export interface AdvancedStats {
+  totalDonated: number
+  totalClaimed: number
+  totalWasted: number
+  expiryConversionRate: number
+  avgClaimResponseTime: number
+  lossReasonDistribution: Record<string, number>
+  categoryStats: Record<string, { donated: number; claimed: number; wasted: number }>
+  roleStats: {
+    donors: number
+    claimants: number
+    topDonors: Array<{ id: string; name: string; count: number }>
+    topClaimants: Array<{ id: string; name: string; count: number }>
+  }
+  fridgeStats: Array<{
+    id: string
+    name: string
+    community: string
+    donated: number
+    claimed: number
+    wasted: number
+    currentStock: number
+    capacity: number
+  }>
+  vouchers: ClaimVoucher[]
+}
+
+export interface DashboardStats {
+  totalDonated: number
+  totalClaimed: number
+  totalWasted: number
+  beneficiaryFamilies: number
+  carbonReduction: number
+  monthlyTrend: { month: string; donated: number; claimed: number; wasted: number }[]
+  categoryBreakdown: { name: string; value: number }[]
+  topDonors: { id: string; name: string; count: number }[]
+  fridgeStatus: { id: string; name: string; status: string; currentStock: number; capacity: number }[]
+  expiryAlerts: { id: string; name: string; expiryDate: string; daysLeft: number; category: string }[]
+}
+
 interface StoreState {
   currentUser: User
   foods: Food[]
@@ -90,6 +321,16 @@ interface StoreState {
   sortBy: '最新发布' | '即将过期' | '距离最近'
   pickupFilter: PickupMethod[]
   distanceRange: [number, number]
+  notifications: Notification[]
+  vouchers: ClaimVoucher[]
+  materialNeeds: MaterialNeed[]
+  fridgePoints: FridgePoint[]
+  inspectionTasks: InspectionTask[]
+  alertRules: AlertRule[]
+  categoryConfigs: FoodCategoryConfig[]
+  advancedStats: AdvancedStats | null
+  selectedFoodIds: string[]
+  reviews: FoodReview[]
   fetchFoods: (filters?: { category?: string; sortBy?: string; status?: string }) => Promise<void>
   fetchFridges: () => Promise<void>
   fetchDashboard: () => Promise<void>
@@ -108,6 +349,42 @@ interface StoreState {
   logout: () => void
   uploadImage: (file: File) => Promise<string | null>
   inspectFridge: (fridgeId: string, data: { temperature: number; cleanliness: number; notes: string }) => Promise<boolean>
+  cancelClaim: (foodId: string) => Promise<boolean>
+  withdrawDonation: (foodId: string) => Promise<boolean>
+  resubmitFood: (foodId: string, data: Partial<Food>) => Promise<boolean>
+  fetchRejectReason: (foodId: string) => Promise<RejectRecord | null>
+  fetchStockLogs: (foodId: string) => Promise<StockChangeLog[]>
+  fetchStatusTimeline: (foodId: string) => Promise<StatusTimeline[]>
+  addToQueue: (foodId: string) => Promise<ReservationQueue | null>
+  cancelQueue: (foodId: string) => Promise<boolean>
+  fetchQueue: (foodId: string) => Promise<ReservationQueue[]>
+  fetchNotifications: (filters?: { read?: boolean; type?: string }) => Promise<void>
+  markNotificationRead: (notificationId: string) => Promise<boolean>
+  markAllNotificationsRead: () => Promise<boolean>
+  fetchVouchers: () => Promise<void>
+  createVoucher: (food: Food) => Promise<ClaimVoucher | null>
+  fetchMaterialNeeds: (filters?: { status?: string; category?: string; urgency?: string }) => Promise<void>
+  createMaterialNeed: (data: Omit<MaterialNeed, 'id' | 'createdAt' | 'status' | 'requesterId' | 'requesterName'>) => Promise<MaterialNeed | null>
+  updateMaterialNeedStatus: (id: string, status: MaterialNeed['status'], matchedDonationId?: string) => Promise<boolean>
+  addReview: (foodId: string, data: Omit<FoodReview, 'id' | 'foodId' | 'createdAt'>) => Promise<FoodReview | null>
+  fetchReviews: (foodId: string) => Promise<FoodReview[]>
+  fetchUserReviews: () => Promise<void>
+  fetchFridgePoints: (filters?: { status?: string; community?: string }) => Promise<void>
+  fetchInspectionTasks: (filters?: { status?: string }) => Promise<void>
+  createInspectionTask: (data: Omit<InspectionTask, 'id' | 'createdAt' | 'status'>) => Promise<InspectionTask | null>
+  updateInspectionTask: (id: string, data: Partial<InspectionTask>) => Promise<boolean>
+  completeInspectionTask: (id: string, data: { temperature: number; cleanliness: number; issues?: string; notes?: string }) => Promise<boolean>
+  fetchAlertRules: () => Promise<void>
+  updateAlertRule: (id: string, data: Partial<AlertRule>) => Promise<boolean>
+  fetchCategoryConfigs: () => Promise<void>
+  updateCategoryConfig: (id: string, data: Partial<FoodCategoryConfig>) => Promise<boolean>
+  fetchAdvancedStats: (filters?: { startDate?: string; endDate?: string; community?: string; role?: string; fridgeId?: string }) => Promise<void>
+  exportReport: (filters?: { startDate?: string; endDate?: string; community?: string; role?: string; fridgeId?: string; format?: string }) => Promise<void>
+  batchUpdateFoodStatus: (ids: string[], status: FoodStatus) => Promise<number>
+  batchMarkExpired: (ids: string[]) => Promise<number>
+  toggleFoodSelection: (foodId: string) => void
+  clearFoodSelection: () => void
+  selectAllFoods: (foodIds: string[]) => void
 }
 
 const mockUsers: Record<Role, User> = {
@@ -331,6 +608,16 @@ export const useStore = create<StoreState>((set, get) => ({
   sortBy: '最新发布',
   pickupFilter: [],
   distanceRange: [0, 10],
+  notifications: [],
+  vouchers: [],
+  materialNeeds: [],
+  fridgePoints: [],
+  inspectionTasks: [],
+  alertRules: [],
+  categoryConfigs: [],
+  advancedStats: null,
+  selectedFoodIds: [],
+  reviews: [],
 
   fetchFoods: async (filters) => {
     try {
@@ -685,5 +972,779 @@ export const useStore = create<StoreState>((set, get) => ({
       }))
       return true
     }
+  },
+
+  cancelClaim: async (foodId) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/foods/${foodId}/cancel-claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimantId: currentUser.id }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          const updatedFood = convertDbFoodToStore(result.data)
+          set((state) => ({
+            foods: state.foods.map((f) => (f.id === foodId ? { ...f, ...updatedFood } : f)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        foods: state.foods.map((f) =>
+          f.id === foodId && f.status === 'reserved' && f.claimantId === currentUser.id
+            ? { ...f, status: 'available' as FoodStatus, claimantId: undefined, claimantName: undefined }
+            : f
+        ),
+      }))
+      return true
+    }
+  },
+
+  withdrawDonation: async (foodId) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/foods/${foodId}/withdraw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ donorId: currentUser.id }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          const updatedFood = convertDbFoodToStore(result.data)
+          set((state) => ({
+            foods: state.foods.map((f) => (f.id === foodId ? { ...f, ...updatedFood } : f)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        foods: state.foods.map((f) =>
+          f.id === foodId && f.donorId === currentUser.id && ['pending_review', 'available'].includes(f.status)
+            ? { ...f, status: 'rejected' as FoodStatus }
+            : f
+        ),
+      }))
+      return true
+    }
+  },
+
+  resubmitFood: async (foodId, data) => {
+    try {
+      const res = await fetch(`/api/foods/${foodId}/resubmit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          const updatedFood = convertDbFoodToStore(result.data)
+          set((state) => ({
+            foods: state.foods.map((f) => (f.id === foodId ? { ...f, ...updatedFood } : f)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        foods: state.foods.map((f) =>
+          f.id === foodId && f.status === 'rejected'
+            ? { ...f, ...data, status: 'pending_review' as FoodStatus }
+            : f
+        ),
+      }))
+      return true
+    }
+  },
+
+  fetchRejectReason: async (foodId) => {
+    try {
+      const res = await fetch(`/api/foods/${foodId}/reject-reason`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
+
+  fetchStockLogs: async (foodId) => {
+    try {
+      const res = await fetch(`/api/foods/${foodId}/stock-logs`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return []
+    } catch {
+      return []
+    }
+  },
+
+  fetchStatusTimeline: async (foodId) => {
+    try {
+      const res = await fetch(`/api/foods/${foodId}/timeline`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return []
+    } catch {
+      return []
+    }
+  },
+
+  addToQueue: async (foodId) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/foods/${foodId}/queue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimantId: currentUser.id, claimantName: currentUser.name }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return null
+    } catch {
+      return {
+        id: 'q' + Date.now(),
+        foodId,
+        claimantId: currentUser.id,
+        claimantName: currentUser.name,
+        queuePosition: 1,
+        status: 'waiting' as const,
+        createdAt: new Date().toISOString().split('T')[0],
+      }
+    }
+  },
+
+  cancelQueue: async (foodId) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/foods/${foodId}/queue/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimantId: currentUser.id }),
+      })
+      return res.ok
+    } catch {
+      return true
+    }
+  },
+
+  fetchQueue: async (foodId) => {
+    try {
+      const res = await fetch(`/api/foods/${foodId}/queue`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return []
+    } catch {
+      return []
+    }
+  },
+
+  fetchNotifications: async (filters) => {
+    const currentUser = get().currentUser
+    try {
+      const params = new URLSearchParams()
+      if (filters?.read !== undefined) params.append('read', String(filters.read))
+      if (filters?.type) params.append('type', filters.type)
+      const res = await fetch(`/api/notifications/${currentUser.id}?${params.toString()}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ notifications: result.data })
+        }
+      }
+    } catch {
+      set({ notifications: [] })
+    }
+  },
+
+  markNotificationRead: async (notificationId) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/notifications/${currentUser.id}/read/${notificationId}`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === notificationId ? { ...n, read: true } : n
+          ),
+        }))
+        return true
+      }
+      return false
+    } catch {
+      set((state) => ({
+        notifications: state.notifications.map((n) =>
+          n.id === notificationId ? { ...n, read: true } : n
+        ),
+      }))
+      return true
+    }
+  },
+
+  markAllNotificationsRead: async () => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/notifications/${currentUser.id}/read-all`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, read: true })),
+        }))
+        return true
+      }
+      return false
+    } catch {
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, read: true })),
+      }))
+      return true
+    }
+  },
+
+  fetchVouchers: async () => {
+    const currentUser = get().currentUser
+    const endpoint = currentUser.role === 'claimant' ? 'claimant' : 'donor'
+    try {
+      const res = await fetch(`/api/vouchers/${endpoint}/${currentUser.id}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ vouchers: result.data })
+        }
+      }
+    } catch {
+      set({ vouchers: [] })
+    }
+  },
+
+  createVoucher: async (food) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch('/api/vouchers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          foodId: food.id,
+          foodName: food.name,
+          claimantId: currentUser.id,
+          claimantName: currentUser.name,
+          donorId: food.donorId,
+          donorName: food.donorName,
+          pickupCode: food.pickupCode,
+          claimedAt: new Date().toISOString().split('T')[0],
+          pickupLocation: food.location,
+          quantity: food.quantity,
+          weight: food.weight,
+          category: food.category,
+          images: food.images,
+        }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  },
+
+  fetchMaterialNeeds: async (filters) => {
+    try {
+      const params = new URLSearchParams()
+      if (filters?.status) params.append('status', filters.status)
+      if (filters?.category) params.append('category', filters.category)
+      if (filters?.urgency) params.append('urgency', filters.urgency)
+      const res = await fetch(`/api/needs?${params.toString()}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ materialNeeds: result.data })
+        }
+      }
+    } catch {
+      set({ materialNeeds: [] })
+    }
+  },
+
+  createMaterialNeed: async (data) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch('/api/needs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          requesterId: currentUser.id,
+          requesterName: currentUser.name,
+        }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            materialNeeds: [result.data, ...state.materialNeeds],
+          }))
+          return result.data
+        }
+      }
+      return null
+    } catch {
+      const newNeed: MaterialNeed = {
+        ...data,
+        id: 'need-' + Date.now(),
+        requesterId: currentUser.id,
+        requesterName: currentUser.name,
+        status: 'open',
+        createdAt: new Date().toISOString().split('T')[0],
+      }
+      set((state) => ({ materialNeeds: [newNeed, ...state.materialNeeds] }))
+      return newNeed
+    }
+  },
+
+  updateMaterialNeedStatus: async (id, status, matchedDonationId) => {
+    try {
+      const res = await fetch(`/api/needs/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, matchedDonationId }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            materialNeeds: state.materialNeeds.map((n) => (n.id === id ? result.data : n)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        materialNeeds: state.materialNeeds.map((n) =>
+          n.id === id ? { ...n, status, matchedDonationId } : n
+        ),
+      }))
+      return true
+    }
+  },
+
+  addReview: async (foodId, data) => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/reviews/${foodId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          reviewerId: currentUser.id,
+          reviewerName: currentUser.name,
+          reviewerRole: currentUser.role as 'donor' | 'claimant',
+        }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return null
+    } catch {
+      return {
+        id: 'review-' + Date.now(),
+        foodId,
+        reviewerId: currentUser.id,
+        reviewerName: currentUser.name,
+        reviewerRole: currentUser.role as 'donor' | 'claimant',
+        targetId: data.targetId,
+        targetName: data.targetName,
+        rating: data.rating,
+        content: data.content,
+        thankYouNote: data.thankYouNote,
+        createdAt: new Date().toISOString().split('T')[0],
+      }
+    }
+  },
+
+  fetchReviews: async (foodId) => {
+    try {
+      const res = await fetch(`/api/reviews/food/${foodId}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          return result.data
+        }
+      }
+      return []
+    } catch {
+      return []
+    }
+  },
+
+  fetchUserReviews: async () => {
+    const currentUser = get().currentUser
+    try {
+      const res = await fetch(`/api/reviews/user/${currentUser.id}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ reviews: result.data })
+          return
+        }
+      }
+      throw new Error('API failed')
+    } catch {
+      set({ reviews: [] })
+    }
+  },
+
+  fetchFridgePoints: async (filters) => {
+    try {
+      const params = new URLSearchParams()
+      if (filters?.status) params.append('status', filters.status)
+      if (filters?.community) params.append('community', filters.community)
+      const res = await fetch(`/api/fridge-points?${params.toString()}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ fridgePoints: result.data })
+        }
+      }
+    } catch {
+      set({ fridgePoints: [] })
+    }
+  },
+
+  fetchInspectionTasks: async (filters) => {
+    try {
+      const params = new URLSearchParams()
+      if (filters?.status) params.append('status', filters.status)
+      const res = await fetch(`/api/inspections?${params.toString()}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ inspectionTasks: result.data })
+        }
+      }
+    } catch {
+      set({ inspectionTasks: [] })
+    }
+  },
+
+  createInspectionTask: async (data) => {
+    try {
+      const res = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            inspectionTasks: [result.data, ...state.inspectionTasks],
+          }))
+          return result.data
+        }
+      }
+      return null
+    } catch {
+      const newTask: InspectionTask = {
+        ...data,
+        id: 'task-' + Date.now(),
+        status: 'pending',
+        createdAt: new Date().toISOString().split('T')[0],
+      }
+      set((state) => ({ inspectionTasks: [newTask, ...state.inspectionTasks] }))
+      return newTask
+    }
+  },
+
+  updateInspectionTask: async (id, data) => {
+    try {
+      const res = await fetch(`/api/inspections/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            inspectionTasks: state.inspectionTasks.map((t) => (t.id === id ? result.data : t)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        inspectionTasks: state.inspectionTasks.map((t) => (t.id === id ? { ...t, ...data } : t)),
+      }))
+      return true
+    }
+  },
+
+  completeInspectionTask: async (id, data) => {
+    try {
+      const res = await fetch(`/api/inspections/${id}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            inspectionTasks: state.inspectionTasks.map((t) => (t.id === id ? result.data : t)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        inspectionTasks: state.inspectionTasks.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                status: 'completed',
+                temperature: data.temperature,
+                cleanliness: data.cleanliness,
+                issues: data.issues,
+                notes: data.notes,
+                completedDate: new Date().toISOString().split('T')[0],
+              }
+            : t
+        ),
+      }))
+      return true
+    }
+  },
+
+  fetchAlertRules: async () => {
+    try {
+      const res = await fetch('/api/admin/alert-rules')
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ alertRules: result.data })
+        }
+      }
+    } catch {
+      set({ alertRules: [] })
+    }
+  },
+
+  updateAlertRule: async (id, data) => {
+    try {
+      const res = await fetch(`/api/admin/alert-rules/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            alertRules: state.alertRules.map((r) => (r.id === id ? result.data : r)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        alertRules: state.alertRules.map((r) => (r.id === id ? { ...r, ...data } : r)),
+      }))
+      return true
+    }
+  },
+
+  fetchCategoryConfigs: async () => {
+    try {
+      const res = await fetch('/api/admin/category-configs')
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ categoryConfigs: result.data })
+        }
+      }
+    } catch {
+      set({ categoryConfigs: [] })
+    }
+  },
+
+  updateCategoryConfig: async (id, data) => {
+    try {
+      const res = await fetch(`/api/admin/category-configs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set((state) => ({
+            categoryConfigs: state.categoryConfigs.map((c) => (c.id === id ? result.data : c)),
+          }))
+          return true
+        }
+      }
+      return false
+    } catch {
+      set((state) => ({
+        categoryConfigs: state.categoryConfigs.map((c) => (c.id === id ? { ...c, ...data } : c)),
+      }))
+      return true
+    }
+  },
+
+  fetchAdvancedStats: async (filters) => {
+    try {
+      const params = new URLSearchParams()
+      if (filters?.startDate) params.append('startDate', filters.startDate)
+      if (filters?.endDate) params.append('endDate', filters.endDate)
+      if (filters?.community) params.append('community', filters.community)
+      if (filters?.role) params.append('role', filters.role)
+      if (filters?.fridgeId) params.append('fridgeId', filters.fridgeId)
+      const res = await fetch(`/api/admin/advanced-stats?${params.toString()}`)
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success && result.data) {
+          set({ advancedStats: result.data })
+        }
+      }
+    } catch {
+      set({ advancedStats: null })
+    }
+  },
+
+  exportReport: async (filters) => {
+    try {
+      const params = new URLSearchParams()
+      if (filters?.startDate) params.append('startDate', filters.startDate)
+      if (filters?.endDate) params.append('endDate', filters.endDate)
+      if (filters?.community) params.append('community', filters.community)
+      if (filters?.role) params.append('role', filters.role)
+      if (filters?.fridgeId) params.append('fridgeId', filters.fridgeId)
+      if (filters?.format) params.append('format', filters.format)
+      const res = await fetch(`/api/admin/export?${params.toString()}`)
+      if (res.ok && filters?.format === 'csv') {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `report_${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+      }
+    } catch {}
+  },
+
+  batchUpdateFoodStatus: async (ids, status) => {
+    try {
+      const res = await fetch('/api/foods/batch-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, status }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success) {
+          set((state) => ({
+            foods: state.foods.map((f) => (ids.includes(f.id) ? { ...f, status } : f)),
+            selectedFoodIds: [],
+          }))
+          return result.count || 0
+        }
+      }
+      return 0
+    } catch {
+      set((state) => ({
+        foods: state.foods.map((f) => (ids.includes(f.id) ? { ...f, status } : f)),
+        selectedFoodIds: [],
+      }))
+      return ids.length
+    }
+  },
+
+  batchMarkExpired: async (ids) => {
+    try {
+      const res = await fetch('/api/foods/batch-mark-expired', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        if (result.success) {
+          set((state) => ({
+            foods: state.foods.map((f) => (ids.includes(f.id) ? { ...f, status: 'expired' as FoodStatus } : f)),
+            selectedFoodIds: [],
+          }))
+          return result.count || 0
+        }
+      }
+      return 0
+    } catch {
+      set((state) => ({
+        foods: state.foods.map((f) => (ids.includes(f.id) ? { ...f, status: 'expired' as FoodStatus } : f)),
+        selectedFoodIds: [],
+      }))
+      return ids.length
+    }
+  },
+
+  toggleFoodSelection: (foodId) => {
+    set((state) => ({
+      selectedFoodIds: state.selectedFoodIds.includes(foodId)
+        ? state.selectedFoodIds.filter((id) => id !== foodId)
+        : [...state.selectedFoodIds, foodId],
+    }))
+  },
+
+  clearFoodSelection: () => {
+    set({ selectedFoodIds: [] })
+  },
+
+  selectAllFoods: (foodIds) => {
+    set({ selectedFoodIds: foodIds })
   },
 }))

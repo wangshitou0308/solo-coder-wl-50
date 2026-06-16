@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Gift, ShoppingBag, Clock, CheckCircle, XCircle, AlertTriangle, Eye } from 'lucide-react'
+import { ArrowLeft, User, Gift, ShoppingBag, Clock, CheckCircle, XCircle, AlertTriangle, Eye, MessageSquareHeart, Ticket, MapPin, FileText, Plus } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { cn } from '@/lib/utils'
 
@@ -75,6 +75,46 @@ export default function Profile() {
             <p className="text-xs text-blue-500">领取数</p>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <button
+            onClick={() => navigate('/reviews')}
+            className="py-3 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 flex flex-col items-center justify-center gap-1.5 hover:from-amber-100 hover:to-orange-100 transition-all"
+          >
+            <MessageSquareHeart className="w-4 h-4 text-amber-500" />
+            <span className="text-xs font-medium text-amber-700">评价与感谢</span>
+          </button>
+          <button
+            onClick={() => navigate('/vouchers')}
+            className="py-3 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 flex flex-col items-center justify-center gap-1.5 hover:from-blue-100 hover:to-cyan-100 transition-all"
+          >
+            <Ticket className="w-4 h-4 text-blue-500" />
+            <span className="text-xs font-medium text-blue-700">领取凭证</span>
+          </button>
+          <button
+            onClick={() => navigate('/fridge-map')}
+            className="py-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 flex flex-col items-center justify-center gap-1.5 hover:from-green-100 hover:to-emerald-100 transition-all"
+          >
+            <MapPin className="w-4 h-4 text-green-500" />
+            <span className="text-xs font-medium text-green-700">冰箱地图</span>
+          </button>
+          <button
+            onClick={() => navigate('/needs')}
+            className="py-3 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 flex flex-col items-center justify-center gap-1.5 hover:from-purple-100 hover:to-pink-100 transition-all"
+          >
+            <FileText className="w-4 h-4 text-purple-500" />
+            <span className="text-xs font-medium text-purple-700">物资需求</span>
+          </button>
+        </div>
+        {role === 'claimant' && (
+          <button
+            onClick={() => navigate('/publish-need')}
+            className="w-full mt-3 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 flex items-center justify-center gap-2 hover:from-primary-600 hover:to-primary-700 transition-all shadow-md"
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span className="text-sm font-medium text-white">发布物资需求</span>
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-1 bg-stone-100 rounded-xl p-1 mb-6">

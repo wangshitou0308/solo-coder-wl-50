@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ClipboardCheck, Refrigerator, AlertTriangle, BarChart3, CheckCircle, XCircle, Trash2, Thermometer, Star, MapPin, Edit2, Save, X, FileText, TrendingUp, Calendar } from 'lucide-react'
-import { useStore, type Fridge } from '@/store/useStore'
+import { useNavigate } from 'react-router-dom'
+import { ClipboardCheck, Refrigerator, AlertTriangle, BarChart3, CheckCircle, XCircle, Trash2, Thermometer, Star, MapPin, Edit2, Save, X, FileText, TrendingUp, Calendar, CheckSquare, Square, Settings, ClipboardList, BarChart2 } from 'lucide-react'
+import { useStore, type Fridge, type FoodStatus } from '@/store/useStore'
 import { cn } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts'
 
@@ -9,12 +10,15 @@ type AdminTab = '待审核' | '冰箱巡查' | '过期处理' | '每日统计'
 const tabs: AdminTab[] = ['待审核', '冰箱巡查', '过期处理', '每日统计']
 
 export default function Admin() {
-  const { foods, fridges, fetchFoods, fetchFridges, updateFoodStatus, inspectFridge, currentUser } = useStore()
+  const navigate = useNavigate()
+  const { foods, fridges, fetchFoods, fetchFridges, updateFoodStatus, inspectFridge, currentUser, selectedFoodIds, toggleFoodSelection, clearFoodSelection, selectAllFoods, batchUpdateFoodStatus, batchMarkExpired } = useStore()
   const [activeTab, setActiveTab] = useState<AdminTab>('待审核')
   const [inspectingFridge, setInspectingFridge] = useState<string | null>(null)
   const [inspectionData, setInspectionData] = useState({ temperature: 4, cleanliness: 5, notes: '' })
   const [savingInspection, setSavingInspection] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [showBatchMenu, setShowBatchMenu] = useState(false)
+  const [batchLoading, setBatchLoading] = useState(false)
 
   useEffect(() => {
     fetchFoods()
@@ -135,6 +139,29 @@ export default function Admin() {
             管理员：{currentUser.name}
           </p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => navigate('/inspection-tasks')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-stone-200 text-stone-700 text-sm font-medium hover:bg-stone-50 transition-colors"
+          >
+            <ClipboardList className="w-4 h-4" />
+            巡检任务
+          </button>
+          <button
+            onClick={() => navigate('/alert-rules')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-stone-200 text-stone-700 text-sm font-medium hover:bg-stone-50 transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            告警规则
+          </button>
+          <button
+            onClick={() => navigate('/analytics')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white text-sm font-medium hover:from-primary-600 hover:to-primary-700 transition-all shadow-sm"
+          >
+            <BarChart2 className="w-4 h-4" />
+            高级分析
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -210,6 +237,71 @@ export default function Admin() {
 
       {activeTab === '待审核' && (
         <div className="space-y-4">
+          {pendingFoods.length > 0 && (
+            <div className="bg-white rounded-2xl border border-stone-200/60 p-4 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    const allSelected = pendingFoods.every(f => selectedFoodIds.includes(f.id))
+                    if (allSelected) {
+                      clearFoodSelection()
+                    } else {
+                      selectAllFoods(pendingFoods.map(f => f.id))
+                    }
+                  }}
+                  className="flex items-center gap-2 text-sm text-stone-600 hover:text-stone-800"
+                >
+                  {pendingFoods.every(f => selectedFoodIds.includes(f.id)) ? (
+                    <CheckSquare className="w-5 h-5 text-primary-500" />
+                  ) : (
+                    <Square className="w-5 h-5 text-stone-400" />
+                  )}
+                  <span className="font-medium">全选</span>
+                </button>
+                <span className="text-xs text-stone-400">
+                  已选择 {selectedFoodIds.filter(id => pendingFoods.some(f => f.id === id)).length} / {pendingFoods.length} 项
+                </span>
+              </div>
+              {selectedFoodIds.filter(id => pendingFoods.some(f => f.id === id)).length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      const ids = selectedFoodIds.filter(id => pendingFoods.some(f => f.id === id))
+                      setBatchLoading(true)
+                      const count = await batchUpdateFoodStatus(ids, 'available')
+                      setBatchLoading(false)
+                      showToast(`已批量通过 ${count} 件食物`)
+                      clearFoodSelection()
+                    }}
+                    disabled={batchLoading}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 text-white text-sm font-medium hover:shadow-md transition-all disabled:opacity-60"
+                  >
+                    {batchLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    批量通过
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const ids = selectedFoodIds.filter(id => pendingFoods.some(f => f.id === id))
+                      setBatchLoading(true)
+                      const count = await batchUpdateFoodStatus(ids, 'rejected')
+                      setBatchLoading(false)
+                      showToast(`已批量驳回 ${count} 件食物`)
+                      clearFoodSelection()
+                    }}
+                    disabled={batchLoading}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 border-red-200 text-red-500 text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-60"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    批量驳回
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {pendingFoods.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-2xl border border-stone-200/60">
               <div className="w-16 h-16 rounded-2xl bg-secondary-50 flex items-center justify-center mx-auto mb-4">
@@ -222,6 +314,19 @@ export default function Admin() {
             pendingFoods.map((food, index) => (
               <div key={food.id} className="bg-white rounded-2xl border border-stone-200/60 p-5 sm:p-6 card-enter" style={{ animationDelay: `${index * 0.05}s` }}>
                 <div className="flex items-start justify-between gap-4 flex-col sm:flex-row">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleFoodSelection(food.id)
+                    }}
+                    className="mt-1 flex-shrink-0"
+                  >
+                    {selectedFoodIds.includes(food.id) ? (
+                      <CheckSquare className="w-5 h-5 text-primary-500" />
+                    ) : (
+                      <Square className="w-5 h-5 text-stone-300 hover:text-stone-500 transition-colors" />
+                    )}
+                  </button>
                   <div className="flex items-start gap-4 flex-1">
                     {food.images && food.images.length > 0 ? (
                       <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-stone-100">
@@ -466,6 +571,56 @@ export default function Admin() {
 
       {activeTab === '过期处理' && (
         <div className="space-y-4">
+          {expiredFoods.length > 0 && (
+            <div className="bg-white rounded-2xl border border-stone-200/60 p-4 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    const allSelected = expiredFoods.every(f => selectedFoodIds.includes(f.id))
+                    if (allSelected) {
+                      clearFoodSelection()
+                    } else {
+                      selectAllFoods(expiredFoods.map(f => f.id))
+                    }
+                  }}
+                  className="flex items-center gap-2 text-sm text-stone-600 hover:text-stone-800"
+                >
+                  {expiredFoods.every(f => selectedFoodIds.includes(f.id)) ? (
+                    <CheckSquare className="w-5 h-5 text-red-500" />
+                  ) : (
+                    <Square className="w-5 h-5 text-stone-400" />
+                  )}
+                  <span className="font-medium">全选</span>
+                </button>
+                <span className="text-xs text-stone-400">
+                  已选择 {selectedFoodIds.filter(id => expiredFoods.some(f => f.id === id)).length} / {expiredFoods.length} 项
+                </span>
+              </div>
+              {selectedFoodIds.filter(id => expiredFoods.some(f => f.id === id)).length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      const ids = selectedFoodIds.filter(id => expiredFoods.some(f => f.id === id))
+                      setBatchLoading(true)
+                      const count = await batchMarkExpired(ids)
+                      setBatchLoading(false)
+                      showToast(`已批量下架 ${count} 件食物`)
+                      clearFoodSelection()
+                    }}
+                    disabled={batchLoading}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-medium hover:shadow-md transition-all disabled:opacity-60"
+                  >
+                    {batchLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    批量销毁
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {nearExpiryFoods.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-1.5">
@@ -538,6 +693,19 @@ export default function Admin() {
                   return (
                     <div key={food.id} className="bg-white rounded-xl border border-red-200 p-5 bg-gradient-to-r from-red-50/30 to-transparent">
                       <div className="flex items-start justify-between gap-4 flex-col sm:flex-row">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFoodSelection(food.id)
+                          }}
+                          className="mt-1 flex-shrink-0"
+                        >
+                          {selectedFoodIds.includes(food.id) ? (
+                            <CheckSquare className="w-5 h-5 text-red-500" />
+                          ) : (
+                            <Square className="w-5 h-5 text-stone-300 hover:text-stone-500 transition-colors" />
+                          )}
+                        </button>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <h3 className="font-semibold text-stone-800 line-through decoration-red-400">{food.name}</h3>

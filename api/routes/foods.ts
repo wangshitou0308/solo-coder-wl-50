@@ -4,6 +4,121 @@ import type { FoodStatus } from '../database.js'
 
 const router = Router()
 
+router.post('/:id/cancel-claim', async (req: Request, res: Response): Promise<void> => {
+  const { claimantId } = req.body
+  if (!claimantId) {
+    res.status(400).json({ success: false, error: '缺少认领人ID' })
+    return
+  }
+
+  const food = db.cancelClaim(req.params.id, claimantId)
+  if (!food) {
+    res.status(400).json({ success: false, error: '取消预约失败，食物状态不正确或无权操作' })
+    return
+  }
+
+  res.json({ success: true, data: food })
+})
+
+router.post('/:id/withdraw', async (req: Request, res: Response): Promise<void> => {
+  const { donorId } = req.body
+  if (!donorId) {
+    res.status(400).json({ success: false, error: '缺少捐赠人ID' })
+    return
+  }
+
+  const food = db.withdrawDonation(req.params.id, donorId)
+  if (!food) {
+    res.status(400).json({ success: false, error: '撤回失败，食物状态不正确或无权操作' })
+    return
+  }
+
+  res.json({ success: true, data: food })
+})
+
+router.post('/:id/resubmit', async (req: Request, res: Response): Promise<void> => {
+  const food = db.resubmitFood(req.params.id, req.body)
+  if (!food) {
+    res.status(400).json({ success: false, error: '重新提交失败，食物状态不正确' })
+    return
+  }
+
+  res.json({ success: true, data: food })
+})
+
+router.get('/:id/reject-reason', async (req: Request, res: Response): Promise<void> => {
+  const record = db.getRejectRecord(req.params.id)
+  if (!record) {
+    res.status(404).json({ success: false, error: '未找到驳回记录' })
+    return
+  }
+
+  res.json({ success: true, data: record })
+})
+
+router.get('/:id/stock-logs', async (req: Request, res: Response): Promise<void> => {
+  const logs = db.getStockChangeLogs(req.params.id)
+  res.json({ success: true, data: logs })
+})
+
+router.get('/:id/timeline', async (req: Request, res: Response): Promise<void> => {
+  const timeline = db.getStatusTimeline(req.params.id)
+  res.json({ success: true, data: timeline })
+})
+
+router.post('/:id/queue', async (req: Request, res: Response): Promise<void> => {
+  const { claimantId, claimantName } = req.body
+  if (!claimantId || !claimantName) {
+    res.status(400).json({ success: false, error: '缺少必要参数' })
+    return
+  }
+
+  const queue = db.addReservationQueue(req.params.id, claimantId, claimantName)
+  res.json({ success: true, data: queue })
+})
+
+router.get('/:id/queue', async (req: Request, res: Response): Promise<void> => {
+  const queues = db.getReservationQueue(req.params.id)
+  res.json({ success: true, data: queues })
+})
+
+router.post('/:id/queue/cancel', async (req: Request, res: Response): Promise<void> => {
+  const { claimantId } = req.body
+  const queue = db.cancelReservationByUser(req.params.id, claimantId)
+  if (!queue) {
+    res.status(404).json({ success: false, error: '未找到排队记录' })
+    return
+  }
+  res.json({ success: true, data: queue })
+})
+
+router.post('/process-timeout', async (_req: Request, res: Response): Promise<void> => {
+  db.processTimeoutReservations()
+  res.json({ success: true, message: '超时预约处理完成' })
+})
+
+router.post('/batch-status', async (req: Request, res: Response): Promise<void> => {
+  const { ids, status } = req.body
+  if (!ids || !Array.isArray(ids) || !status) {
+    res.status(400).json({ success: false, error: '参数错误' })
+    return
+  }
+
+  const results = db.batchUpdateFoodStatus(ids, status as FoodStatus)
+  res.json({ success: true, data: results, count: results.length })
+})
+
+router.post('/batch-mark-expired', async (req: Request, res: Response): Promise<void> => {
+  const { ids } = req.body
+  if (!ids || !Array.isArray(ids)) {
+    res.status(400).json({ success: false, error: '参数错误' })
+    return
+  }
+
+  const results = db.batchMarkExpired(ids)
+  res.json({ success: true, data: results, count: results.length })
+})
+
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   const { category, pickupMethod, keyword, status, sortBy } = req.query
   const foods = db.queryFoods({

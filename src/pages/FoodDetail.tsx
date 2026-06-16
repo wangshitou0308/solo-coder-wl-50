@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, MapPin, Truck, Refrigerator, Copy, CheckCircle, XCircle, User, QrCode, Check, AlertTriangle, Image as ImageIcon } from 'lucide-react'
-import { useStore } from '@/store/useStore'
+import { ArrowLeft, Clock, MapPin, Truck, Refrigerator, Copy, CheckCircle, XCircle, User, QrCode, Check, AlertTriangle, Image as ImageIcon, History, Package, X, RotateCcw, Undo2, MessageSquare, ListChecks } from 'lucide-react'
+import { useStore, type StockChangeLog, type StatusTimeline, type RejectRecord } from '@/store/useStore'
 import { cn } from '@/lib/utils'
 
 const categoryColors: Record<string, { bg: string; text: string; gradient: string }> = {
@@ -32,19 +32,55 @@ const statusLabels: Record<string, { text: string; color: string }> = {
 export default function FoodDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { foods, role, currentUser, claimFood, completeClaim, updateFoodStatus, fetchFoods } = useStore()
+  const { foods, role, currentUser, claimFood, completeClaim, updateFoodStatus, fetchFoods, cancelClaim, withdrawDonation, resubmitFood, fetchRejectReason, fetchStockLogs, fetchStatusTimeline, addToQueue, cancelQueue, fetchQueue, createVoucher } = useStore()
   const [showClaimSuccess, setShowClaimSuccess] = useState(false)
   const [claiming, setClaiming] = useState(false)
   const [claimError, setClaimError] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [verifyCode, setVerifyCode] = useState('')
   const [verifyError, setVerifyError] = useState('')
+  const [activeTab, setActiveTab] = useState<'info' | 'timeline' | 'stock'>('info')
+  const [stockLogs, setStockLogs] = useState<StockChangeLog[]>([])
+  const [statusTimeline, setStatusTimeline] = useState<StatusTimeline[]>([])
+  const [rejectRecord, setRejectRecord] = useState<RejectRecord | null>(null)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [showResubmitModal, setShowResubmitModal] = useState(false)
+  const [resubmitData, setResubmitData] = useState({ name: '', description: '' })
+  const [queuePosition, setQueuePosition] = useState<number | null>(null)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
+  const [isResubmitting, setIsResubmitting] = useState(false)
+  const [isJoiningQueue, setIsJoiningQueue] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<{ type: string; title: string; message: string } | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  const food = useMemo(() => foods.find((f) => f.id === id), [foods, id])
 
   useEffect(() => {
     fetchFoods()
   }, [fetchFoods])
 
-  const food = useMemo(() => foods.find((f) => f.id === id), [foods, id])
+  useEffect(() => {
+    if (id && food) {
+      loadDetailData()
+    }
+  }, [id, food])
+
+  const loadDetailData = async () => {
+    if (!id) return
+    const [logs, timeline, reject, queue] = await Promise.all([
+      fetchStockLogs(id),
+      fetchStatusTimeline(id),
+      fetchRejectReason(id),
+      fetchQueue(id),
+    ])
+    setStockLogs(logs)
+    setStatusTimeline(timeline)
+    setRejectRecord(reject)
+    const myQueue = queue.find((q: any) => q.claimantId === currentUser.id && q.status === 'waiting')
+    setQueuePosition(myQueue?.queuePosition || null)
+  }
 
   if (!food) {
     return (
@@ -116,6 +152,120 @@ export default function FoodDetail() {
     }
   }
 
+  const handleCancelClaim = async () => {
+    setIsCancelling(true)
+    const success = await cancelClaim(food.id)
+    setIsCancelling(false)
+    if (success) {
+      setShowConfirmModal(false)
+      setConfirmAction(null)
+      loadDetailData()
+    }
+  }
+
+  const handleWithdraw = async () => {
+    setIsWithdrawing(true)
+    const success = await withdrawDonation(food.id)
+    setIsWithdrawing(false)
+    if (success) {
+      setShowConfirmModal(false)
+      setConfirmAction(null)
+    }
+  }
+
+  const handleResubmit = async () => {
+    if (!resubmitData.name.trim() || !resubmitData.description.trim()) return
+    setIsResubmitting(true)
+    const success = await resubmitFood(food.id, resubmitData)
+    setIsResubmitting(false)
+    if (success) {
+      setShowResubmitModal(false)
+      setResubmitData({ name: '', description: '' })
+    }
+  }
+
+  const handleJoinQueue = async () => {
+    setIsJoiningQueue(true)
+    const success = await addToQueue(food.id)
+    setIsJoiningQueue(false)
+    if (success) {
+      loadDetailData()
+    }
+  }
+
+  const handleCancelQueue = async () => {
+    const success = await cancelQueue(food.id)
+    if (success) {
+      setQueuePosition(null)
+      loadDetailData()
+    }
+  }
+
+  const openResubmitModal = () => {
+    setResubmitData({
+      name: food.name,
+      description: food.description,
+    })
+    setShowResubmitModal(true)
+  }
+
+  const openCancelConfirm = () => {
+    setConfirmAction({
+      type: 'cancel-claim',
+      title: '确认取消预约',
+      message: '取消后该食物将重新上架，可能被其他用户预约。是否继续？',
+    })
+    setShowConfirmModal(true)
+  }
+
+  const openWithdrawConfirm = () => {
+    setConfirmAction({
+      type: 'withdraw',
+      title: '确认撤回捐赠',
+      message: '撤回后该食物将被下架。是否继续？',
+    })
+    setShowConfirmModal(true)
+  }
+
+  const handleConfirmAction = () => {
+    if (confirmAction?.type === 'cancel-claim') {
+      handleCancelClaim()
+    } else if (confirmAction?.type === 'withdraw') {
+      handleWithdraw()
+    }
+  }
+
+  const handleGoToConfirm = () => {
+    navigate(`/claim-confirm/${food.id}`)
+  }
+
+  const formatChangeType = (type: string) => {
+    const map: Record<string, string> = {
+      donated: '创建',
+      reserved: '预约',
+      claimed: '领取',
+      returned: '取消',
+      adjusted: '调整',
+      spoiled: '变质',
+      expired: '过期',
+    }
+    return map[type] || type
+  }
+
+  const formatStatus = (status: string) => {
+    const map: Record<string, string> = {
+      pending_review: '待审核',
+      available: '可领取',
+      reserved: '已预约',
+      claimed: '已领取',
+      rejected: '已驳回',
+      spoiled: '已变质',
+      expired: '已过期',
+      withdrawn: '已撤回',
+    }
+    return map[status] || status
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <button
@@ -180,6 +330,55 @@ export default function FoodDetail() {
         </div>
 
         <div className="p-6 sm:p-8 relative">
+          {food.status === 'rejected' && isMyDonation && rejectRecord && (
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 animate-fade-in-up">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <XCircle className="w-5 h-5 text-red-500" />
+                  <p className="text-sm font-semibold text-red-800">审核未通过</p>
+                </div>
+                <button
+                  onClick={() => setShowRejectModal(true)}
+                  className="text-xs text-red-600 hover:text-red-800 font-medium"
+                >
+                  查看详情
+                </button>
+              </div>
+              <p className="text-xs text-red-600 mb-3 line-clamp-2">
+                驳回原因：{rejectRecord.reason}
+              </p>
+              <button
+                onClick={openResubmitModal}
+                className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                修改后重新提交
+              </button>
+            </div>
+          )}
+
+          {queuePosition !== null && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 animate-fade-in-up">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-blue-800">已加入排队队列</p>
+                    <p className="text-xs text-blue-600">当前排在第 {queuePosition} 位，有空闲时将自动通知您</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCancelQueue}
+                  className="text-xs text-stone-500 hover:text-stone-700"
+                >
+                  取消排队
+                </button>
+              </div>
+            </div>
+          )}
+
           {(isNearExpiry || isExpired) && food.status === 'available' && (
             <div className={cn(
               'mb-6 rounded-xl p-4 flex items-start gap-3',
@@ -406,9 +605,55 @@ export default function FoodDetail() {
             )}
 
             {isMyDonation && food.status === 'available' && (
-              <div className="flex-1 py-3.5 rounded-xl bg-secondary-50 text-secondary-600 font-medium text-center text-sm border border-secondary-200">
-                ✓ 已上架展示中
+              <button
+                onClick={openWithdrawConfirm}
+                disabled={isWithdrawing}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-stone-50 text-stone-600 font-medium border border-stone-200 hover:bg-stone-100 transition-all text-sm"
+              >
+                <Undo2 className="w-4 h-4" />
+                {isWithdrawing ? '撤回中...' : '撤回捐赠'}
+              </button>
+            )}
+
+            {isMyDonation && food.status === 'rejected' && (
+              <button
+                onClick={openResubmitModal}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+                重新提交
+              </button>
+            )}
+
+            {isMyClaim && (
+              <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleGoToConfirm}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-secondary-500 to-secondary-600 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  确认领取
+                </button>
+                <button
+                  onClick={openCancelConfirm}
+                  disabled={isCancelling}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-stone-100 text-stone-600 font-medium border border-stone-200 hover:bg-stone-200 transition-all text-sm disabled:opacity-60"
+                >
+                  <X className="w-4 h-4" />
+                  {isCancelling ? '取消中...' : '取消预约'}
+                </button>
               </div>
+            )}
+
+            {role === 'claimant' && food.status === 'reserved' && !isMyClaim && queuePosition === null && !isExpired && (
+              <button
+                onClick={handleJoinQueue}
+                disabled={isJoiningQueue}
+                className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium shadow-md hover:shadow-lg transition-all text-sm disabled:opacity-60"
+              >
+                <ListChecks className="w-4 h-4" />
+                {isJoiningQueue ? '加入中...' : '加入等待队列'}
+              </button>
             )}
 
             {role === 'admin' && food.status === 'pending_review' && (
@@ -455,8 +700,263 @@ export default function FoodDetail() {
               </div>
             )}
           </div>
+
+          <div className="mt-8 border-t border-stone-200 pt-6">
+            <div className="flex gap-1 bg-stone-100/50 rounded-xl p-1 mb-6">
+              <button
+                onClick={() => setActiveTab('info')}
+                className={cn(
+                  'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all',
+                  activeTab === 'info' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700',
+                )}
+              >
+                详情信息
+              </button>
+              <button
+                onClick={() => setActiveTab('timeline')}
+                className={cn(
+                  'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
+                  activeTab === 'timeline' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700',
+                )}
+              >
+                <History className="w-4 h-4" />
+                状态流转
+              </button>
+              <button
+                onClick={() => setActiveTab('stock')}
+                className={cn(
+                  'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5',
+                  activeTab === 'stock' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700',
+                )}
+              >
+                <Package className="w-4 h-4" />
+                库存记录
+              </button>
+            </div>
+
+            {activeTab === 'timeline' && (
+              <div className="animate-fade-in">
+                <h3 className="text-sm font-semibold text-stone-800 mb-4">状态流转时间线</h3>
+                {statusTimeline.length > 0 ? (
+                  <div className="relative">
+                    {statusTimeline.map((item, index) => (
+                      <div key={item.id} className="flex gap-4 pb-6 last:pb-0">
+                        <div className="flex flex-col items-center">
+                          <div className={cn(
+                            'w-3 h-3 rounded-full border-2 border-white shadow-sm',
+                            index === 0 ? 'bg-primary-500' : 'bg-stone-400',
+                          )} />
+                          {index < statusTimeline.length - 1 && (
+                            <div className="w-0.5 flex-1 bg-stone-200 mt-2" />
+                          )}
+                        </div>
+                        <div className="flex-1 pb-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-semibold text-stone-800">
+                              {formatStatus(item.fromStatus)}
+                            </span>
+                            <span className="text-stone-300">→</span>
+                            <span className="text-sm font-semibold text-primary-600">
+                              {formatStatus(item.toStatus)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500 mb-1.5">
+                            {item.userName || '系统'} · {new Date(item.createdAt).toLocaleString('zh-CN')}
+                          </p>
+                          {item.reason && (
+                            <p className="text-xs text-stone-600 bg-stone-50 rounded-lg px-3 py-2">
+                              {item.reason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <History className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                    <p className="text-sm text-stone-400">暂无状态流转记录</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'stock' && (
+              <div className="animate-fade-in">
+                <h3 className="text-sm font-semibold text-stone-800 mb-4">库存变更记录</h3>
+                {stockLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {stockLogs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-4 p-3 bg-stone-50 rounded-xl">
+                        <div className={cn(
+                          'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
+                          log.changeType === 'donated' ? 'bg-green-100' :
+                          log.changeType === 'claimed' || log.changeType === 'reserved' ? 'bg-blue-100' :
+                          log.changeType === 'returned' || log.changeType === 'adjusted' ? 'bg-stone-100' : 'bg-red-100',
+                        )}>
+                          <Package className={cn(
+                            'w-5 h-5',
+                            log.changeType === 'donated' ? 'text-green-600' :
+                            log.changeType === 'claimed' || log.changeType === 'reserved' ? 'text-blue-600' :
+                            log.changeType === 'returned' || log.changeType === 'adjusted' ? 'text-stone-600' : 'text-red-600',
+                          )} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-sm font-medium text-stone-800">
+                              {formatChangeType(log.changeType)}
+                            </span>
+                            <span className={cn(
+                              'text-sm font-semibold',
+                              log.quantityChange > 0 ? 'text-green-600' : 'text-red-600',
+                            )}>
+                              {log.quantityChange > 0 ? '+' : ''}{log.quantityChange} 份
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-500">
+                            变更前：{log.oldQuantity} 份 · 变更后：{log.newQuantity} 份
+                          </p>
+                          <p className="text-xs text-stone-400 mt-1">
+                            {log.userName} · {new Date(log.createdAt).toLocaleString('zh-CN')}
+                          </p>
+                          {log.reason && (
+                            <p className="text-xs text-stone-600 mt-2">{log.reason}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Package className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                    <p className="text-sm text-stone-400">暂无库存变更记录</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full animate-scale-in">
+            <h3 className="text-lg font-semibold text-stone-800 mb-2">{confirmAction.title}</h3>
+            <p className="text-sm text-stone-600 mb-6">{confirmAction.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowConfirmModal(false); setConfirmAction(null) }}
+                className="flex-1 py-3 rounded-xl bg-stone-100 text-stone-700 font-medium hover:bg-stone-200 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                disabled={isCancelling || isWithdrawing}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-medium hover:from-red-600 hover:to-red-700 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {(isCancelling || isWithdrawing) ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : null}
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRejectModal && rejectRecord && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full animate-scale-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <XCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-stone-800">审核未通过</h3>
+                <p className="text-xs text-stone-500">
+                  驳回人：{rejectRecord.adminName}
+                </p>
+                <p className="text-xs text-stone-400">
+                  {new Date(rejectRecord.createdAt).toLocaleString('zh-CN')}
+                </p>
+              </div>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-6">
+              <p className="text-xs text-red-400 mb-1.5">驳回原因</p>
+              <p className="text-sm text-red-700">{rejectRecord.reason}</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="flex-1 py-3 rounded-xl bg-stone-100 text-stone-700 font-medium hover:bg-stone-200 transition-colors"
+              >
+                关闭
+              </button>
+              <button
+                onClick={() => { setShowRejectModal(false); openResubmitModal() }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium hover:from-primary-600 hover:to-primary-700 transition-all"
+              >
+                重新提交
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResubmitModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full animate-scale-in max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-stone-800 mb-4">重新提交捐赠</h3>
+            {rejectRecord && (
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
+                <p className="text-xs text-red-400 mb-1">上次驳回原因</p>
+                <p className="text-sm text-red-700">{rejectRecord.reason}</p>
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">物品名称</label>
+                <input
+                  type="text"
+                  value={resubmitData.name}
+                  onChange={(e) => setResubmitData({ ...resubmitData, name: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 transition-all"
+                  placeholder="请输入物品名称"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">详细描述</label>
+                <textarea
+                  value={resubmitData.description}
+                  onChange={(e) => setResubmitData({ ...resubmitData, description: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 transition-all resize-none"
+                  placeholder="请详细描述物品情况（数量、包装、保质期等）"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowResubmitModal(false)}
+                className="flex-1 py-3 rounded-xl bg-stone-100 text-stone-700 font-medium hover:bg-stone-200 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleResubmit}
+                disabled={isResubmitting || !resubmitData.name.trim() || !resubmitData.description.trim()}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium hover:from-primary-600 hover:to-primary-700 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {isResubmitting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : null}
+                提交
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
